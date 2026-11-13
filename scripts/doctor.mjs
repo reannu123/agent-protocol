@@ -133,12 +133,15 @@ function checkNode() {
 
 function checkDependencies() {
   if (!existsSync(path('package.json'))) return;
+  const declared = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies, ...pkg.optionalDependencies }).length;
+  if (!declared && !pkg.workspaces) return ok('dependencies', 'none declared');
+  const locked = existsSync(path('package-lock.json'));
+  const install = locked ? 'npm ci' : 'npm install';
   const installed = path('node_modules/.package-lock.json');
   if (!existsSync(path('node_modules')) || !existsSync(installed)) {
-    return fail('dependencies', 'not installed. Run npm ci.');
+    return fail('dependencies', `not installed. Run ${install}.`);
   }
-  if (existsSync(path('package-lock.json'))
-      && statSync(path('package-lock.json')).mtimeMs > statSync(installed).mtimeMs + 1000) {
+  if (locked && statSync(path('package-lock.json')).mtimeMs > statSync(installed).mtimeMs + 1000) {
     return warn('dependencies', 'package-lock.json changed since the last install. Run npm ci.');
   }
   ok('dependencies', 'installed');
@@ -184,8 +187,14 @@ function checkProtocol() {
   if (!ghReady) return note('protocol', `at ${repo}@${sha.slice(0, 7)}; can't check for a newer one without gh`);
   const cmp = run('gh', ['api', `repos/${repo}/compare/${sha}...main`, '--jq',
     '[.status, ([.files[]?.filename] | join(","))] | @tsv']);
-  if (!cmp.ok) return warn('protocol', `at ${sha.slice(0, 7)}; couldn't compare with ${repo}: ${firstLine(cmp.err)}`);
+  const resync = 'Sync this repo to its main in a PR (see that repo\'s README).';
+  if (!cmp.ok) {
+    return warn('protocol', `at ${sha.slice(0, 7)}, which ${repo} can't compare with its main (${firstLine(cmp.err)}). ${resync}`);
+  }
   const [status, files = ''] = cmp.out.split('\t');
+  if (status === 'diverged') {
+    return warn('protocol', `at ${sha.slice(0, 7)}, which isn't in ${repo}'s main any more (its history was rewritten). ${resync}`);
+  }
   const shared = files.split(',').filter((f) => f === 'PROTOCOL.md' || f === 'scripts/doctor.mjs');
   if (status === 'ahead' && shared.length) {
     return warn('protocol', `${repo} changed ${shared.join(' and ')} since ${sha.slice(0, 7)}. `
