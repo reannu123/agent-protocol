@@ -34,7 +34,10 @@ or edit anything:
 3. Run `npm run doctor`. It checks git and the network, `gh`, Node, the installed dependencies,
    Docker, `.env` and this protocol's version. Tell the user about every `FAIL` and `warn` you
    can't fix yourself; a missing login, key or service is theirs to set up. Never print a
-   secret's value.
+   secret's value. If it says the protocol changed, run `npm run doctor -- --sync` and commit
+   the result (`AGENTS.md` and `scripts/doctor.mjs`) in the PR you're about to open or continue,
+   never straight to `main`. Then follow the updated protocol. The user doesn't need to do
+   anything for this.
 4. Run `gh pr list --state open` (it includes drafts). Read each relevant PR's description and
    **Progress** section, and continue an open PR rather than starting the same work again.
 5. Run `git branch -r --no-merged origin/main`. A branch listed there needs a look; it isn't

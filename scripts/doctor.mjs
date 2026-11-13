@@ -13,9 +13,13 @@
 //
 // It never prints a secret's value: only the names of the settings it checks. It changes nothing
 // except `git fetch`, which refreshes the remote refs. Exit code 1 means at least one FAIL.
+//
+// `npm run doctor -- --sync` updates this project to the protocol's latest version instead: it
+// fetches PROTOCOL.md and this script from the protocol repo's main through `gh`, replaces the
+// block in AGENTS.md and this file, and commits nothing. No clone of the protocol repo is needed.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -53,6 +57,9 @@ const path = (p) => join(root, p);
 const readJson = (p) => { try { return JSON.parse(readFileSync(path(p), 'utf8')); } catch { return {}; } };
 const pkg = readJson('package.json');
 const config = pkg.agentProtocol || {};
+
+const MARKER = /<!-- agent-protocol:start ([\w.-]+\/[\w.-]+)@([0-9a-f]{7,40})/;
+const SYNC = 'Run npm run doctor -- --sync and commit AGENTS.md and scripts/doctor.mjs in your PR.';
 
 // Reads a .env file into a map. Values are kept only for local checks that need a path; this
 // script prints names, never values.
@@ -181,13 +188,13 @@ function checkEnv() {
 // --- This protocol's version -----------------------------------------------------------------
 function checkProtocol() {
   const agents = existsSync(path('AGENTS.md')) ? readFileSync(path('AGENTS.md'), 'utf8') : '';
-  const m = agents.match(/<!-- agent-protocol:start ([\w.-]+\/[\w.-]+)@([0-9a-f]{7,40})/);
+  const m = agents.match(MARKER);
   if (!m) return warn('protocol', 'AGENTS.md has no agent-protocol block');
   const [, repo, sha] = m;
   if (!ghReady) return note('protocol', `at ${repo}@${sha.slice(0, 7)}; can't check for a newer one without gh`);
   const cmp = run('gh', ['api', `repos/${repo}/compare/${sha}...main`, '--jq',
     '[.status, ([.files[]?.filename] | join(","))] | @tsv']);
-  const resync = 'Sync this repo to its main in a PR (see that repo\'s README).';
+  const resync = SYNC;
   if (!cmp.ok) {
     return warn('protocol', `at ${sha.slice(0, 7)}, which ${repo} can't compare with its main (${firstLine(cmp.err)}). ${resync}`);
   }
@@ -197,13 +204,46 @@ function checkProtocol() {
   }
   const shared = files.split(',').filter((f) => f === 'PROTOCOL.md' || f === 'scripts/doctor.mjs');
   if (status === 'ahead' && shared.length) {
-    return warn('protocol', `${repo} changed ${shared.join(' and ')} since ${sha.slice(0, 7)}. `
-      + 'Sync it into this repo in a PR (see that repo\'s README).');
+    return warn('protocol', `${repo} changed ${shared.join(' and ')} since ${sha.slice(0, 7)}. ${SYNC}`);
   }
   ok('protocol', `${repo}@${sha.slice(0, 7)}, up to date`);
 }
 
+// --- Sync: npm run doctor -- --sync -----------------------------------------------------------
+function syncProtocol() {
+  const die = (message) => { console.error(`sync: ${message}`); process.exit(1); };
+  const agentsPath = path('AGENTS.md');
+  if (!existsSync(agentsPath)) die('no AGENTS.md here.');
+  const agents = readFileSync(agentsPath, 'utf8');
+  const block = /<!-- agent-protocol:start[^>]*-->[\s\S]*?<!-- agent-protocol:end -->/;
+  if (!block.test(agents)) die('AGENTS.md has no agent-protocol markers.');
+  const repo = agents.match(MARKER)?.[1] || process.env.AGENT_PROTOCOL_REPO;
+  if (!repo) die('AGENTS.md names no protocol repo yet. Set AGENT_PROTOCOL_REPO=<owner>/<repo>.');
+  const ref = process.env.AGENT_PROTOCOL_REF || 'main';
+  const head = run('gh', ['api', `repos/${repo}/commits/${ref}`, '--jq', '.sha']);
+  if (!head.ok) die(`can't read ${repo}@${ref} through gh: ${firstLine(head.err)}`);
+  const sha = head.out;
+  const fetch = (file) => {
+    const r = run('gh', ['api', '-H', 'Accept: application/vnd.github.raw', `repos/${repo}/contents/${file}?ref=${sha}`]);
+    if (!r.ok) die(`can't fetch ${file} from ${repo}: ${firstLine(r.err)}`);
+    return r.out;
+  };
+  const protocol = fetch('PROTOCOL.md');
+  const doctor = fetch('scripts/doctor.mjs');
+  const start = `<!-- agent-protocol:start ${repo}@${sha} (synced; edit PROTOCOL.md in ${repo}, not here) -->`;
+  const next = agents.replace(block, () => `${start}\n\n${protocol}\n\n<!-- agent-protocol:end -->`);
+  const doctorPath = path('scripts/doctor.mjs');
+  const changed = [];
+  if (next !== agents) { writeFileSync(agentsPath, next); changed.push('AGENTS.md'); }
+  if (readFileSync(doctorPath, 'utf8') !== `${doctor}\n`) { writeFileSync(doctorPath, `${doctor}\n`); changed.push('scripts/doctor.mjs'); }
+  console.log(changed.length
+    ? `Synced to ${repo}@${sha.slice(0, 7)}: ${changed.join(' and ')} changed. Commit them in your PR; don't commit to main.`
+    : `Already at ${repo}@${sha.slice(0, 7)}.`);
+  process.exit(0);
+}
+
 // --- Run -------------------------------------------------------------------------------------
+if (process.argv.includes('--sync')) syncProtocol();
 checkGit();
 checkGh();
 checkNode();
