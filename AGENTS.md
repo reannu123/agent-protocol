@@ -19,6 +19,9 @@ This repo holds the protocol every project in the README's list follows. `PROTOC
   README in the same PR.
 - **Name no project in what gets copied.** `PROTOCOL.md`, `scripts/doctor.mjs` and `templates/`
   say how any project works; a project's own needs go in that project.
+- **No tool attribution in commits here** (the owner, 2026-11-13): no `Co-Authored-By` trailer
+  or other line naming an AI tool or model in a commit message, whatever your tool adds by
+  default. This repo stays tool-neutral.
 - Write the way `PROTOCOL.md` does: plain words, short sentences, absolute dates.
 
 ## Before every PR
