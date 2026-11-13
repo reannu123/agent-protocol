@@ -45,7 +45,8 @@ the doctor runs as `npm run doctor`.
   with `@AGENTS.md` as its only line, as `CLAUDE.md` does. Don't put rules in it.
 - **A decision:** tell the agent. It records it in the project's plan or decisions file and in
   `STATUS.md`, in its PR.
-- **The doctor says the protocol changed:** update the project (below).
+- **You changed the protocol:** nothing else. Each project's agent picks it up in its next PR
+  (below).
 
 ## Starting a new repo
 
@@ -88,7 +89,8 @@ reannu123/agent-protocol; follow its README." It needs this repo checked out nex
    Add the project's own doctor settings and checks if it needs them (see "Customizing the
    doctor").
 
-5. Copy the protocol and the doctor in:
+5. Copy the protocol and the doctor in (the first time from the clone; later updates are
+   `npm run doctor -- --sync`):
 
    ```bash
    node ../agent-protocol/scripts/sync.mjs .
@@ -127,22 +129,25 @@ The same steps as a new repo, in a PR that follows the repo's own rules, with th
 
 ## Updating a project to a newer protocol
 
-When a project's doctor says the protocol changed, run this in that project:
+Agents do this themselves. At the start of a session, a project's doctor compares its stamp with
+this repo's `main`. When the protocol changed, the agent runs this in the project and commits
+the result in the PR it is working on:
 
 ```bash
-git -C ../agent-protocol pull --ff-only
-node ../agent-protocol/scripts/sync.mjs .
+npm run doctor -- --sync
 ```
 
-It replaces the block in `AGENTS.md` and `scripts/doctor.mjs`, and commits nothing. Commit the
-two in a PR that follows the project's rules. Several projects can be updated in one run:
-`node scripts/sync.mjs ../project-a ../project-b` from this repo.
+It fetches `PROTOCOL.md` and `scripts/doctor.mjs` from this repo's `main` through `gh` (no clone
+needed), replaces the block in `AGENTS.md` and the project's doctor, and commits nothing.
+
+To update several projects at once from a clone of this repo, `node scripts/sync.mjs
+../project-a ../project-b` does the same from the local checkout.
 
 ## Changing the protocol
 
 1. Change `PROTOCOL.md` or `scripts/doctor.mjs` here, in a PR, and merge it. The owner decides
    what the protocol says.
-2. Update each project, as above. It can wait: until it's done, that project's doctor warns.
+2. That's all. Each project picks it up in its next PR, as above.
 
 A change to this README, `templates/` or `scripts/sync.mjs` needs no project update.
 
