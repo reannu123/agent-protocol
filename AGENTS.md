@@ -14,6 +14,11 @@ This repo holds the protocol every project in the README's list follows. `PROTOC
   oldest Node any project allows (20.19), and never let it print a secret's value. Try it in
   each project (`node ../agent-protocol/scripts/doctor.mjs` from the project's root) before
   merging a change.
+- **Keep the README's guides true.** When a change alters what a project needs or how it's set
+  up (the templates, the doctor's settings or its local-check function, the sync), update the
+  README in the same PR.
+- **Name no project in what gets copied.** `PROTOCOL.md`, `scripts/doctor.mjs` and `templates/`
+  say how any project works; a project's own needs go in that project.
 - Write the way `PROTOCOL.md` does: plain words, short sentences, absolute dates.
 
 ## Before every PR

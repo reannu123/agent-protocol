@@ -133,12 +133,15 @@ function checkNode() {
 
 function checkDependencies() {
   if (!existsSync(path('package.json'))) return;
+  const declared = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies, ...pkg.optionalDependencies }).length;
+  if (!declared && !pkg.workspaces) return ok('dependencies', 'none declared');
+  const locked = existsSync(path('package-lock.json'));
+  const install = locked ? 'npm ci' : 'npm install';
   const installed = path('node_modules/.package-lock.json');
   if (!existsSync(path('node_modules')) || !existsSync(installed)) {
-    return fail('dependencies', 'not installed. Run npm ci.');
+    return fail('dependencies', `not installed. Run ${install}.`);
   }
-  if (existsSync(path('package-lock.json'))
-      && statSync(path('package-lock.json')).mtimeMs > statSync(installed).mtimeMs + 1000) {
+  if (locked && statSync(path('package-lock.json')).mtimeMs > statSync(installed).mtimeMs + 1000) {
     return warn('dependencies', 'package-lock.json changed since the last install. Run npm ci.');
   }
   ok('dependencies', 'installed');
