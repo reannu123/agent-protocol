@@ -237,7 +237,7 @@ function syncProtocol() {
   if (next !== agents) { writeFileSync(agentsPath, next); changed.push('AGENTS.md'); }
   if (readFileSync(doctorPath, 'utf8') !== `${doctor}\n`) { writeFileSync(doctorPath, `${doctor}\n`); changed.push('scripts/doctor.mjs'); }
   console.log(changed.length
-    ? `Synced to ${repo}@${sha.slice(0, 7)}: ${changed.join(' and ')} changed. Commit them in your PR; don't commit to main.`
+    ? `Synced to ${repo}@${sha.slice(0, 7)}: ${changed.join(' and ')} changed. Commit the change in your PR, not on main.`
     : `Already at ${repo}@${sha.slice(0, 7)}.`);
   process.exit(0);
 }
