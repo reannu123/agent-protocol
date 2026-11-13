@@ -58,7 +58,9 @@ no chance to save. Keep the state of your work on GitHub as you go, not at the e
 - **Open a draft PR early.** As soon as the work has its first commit, push the branch and open
   a draft PR (`gh pr create --draft`).
 - **Keep a Progress section in its description**: what's done, what's next, decisions made and
-  why, and anything unresolved or unverified. Update it at each meaningful step.
+  why, and anything unresolved or unverified. Update it at each meaningful step. If
+  `gh pr edit` fails (older `gh` versions call a GitHub API that was retired), use
+  `gh api -X PATCH repos/<owner>/<repo>/pulls/<number> -F body=@<file>` instead.
 - **Commit and push small steps**, so at most one step's work is ever only on one machine.
   Commits on a branch may be partial; `main` only gets reviewed, passing work.
 - When the work is ready, run this repo's checks (its "Before every PR"), mark the PR ready for
